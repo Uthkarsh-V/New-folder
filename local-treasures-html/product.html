@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details | Local Treasures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-neutral-50 font-sans">
+    <!-- Navbar -->
+    <nav class="bg-white shadow flex justify-between items-center px-6 py-4 sticky top-0 z-50">
+        <a href="buyer-dashboard.html" class="text-2xl font-bold text-neutral-900 flex items-center gap-2">
+            <span class="text-xl">←</span> Local Treasures
+        </a>
+        <a href="cart.html" class="relative text-neutral-600 hover:text-emerald-600 transition">
+            <span class="text-2xl">🛒</span>
+            <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">2</span>
+        </a>
+    </nav>
+
+    <!-- Product Details -->
+    <main class="max-w-6xl mx-auto px-4 py-8 md:py-12">
+        <div class="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden flex flex-col md:flex-row">
+            
+            <!-- Media Section -->
+            <div class="w-full md:w-1/2 bg-neutral-100 p-6 flex flex-col justify-center">
+                <img src="https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&auto=format&fit=crop&q=80" alt="Mysore Pak" class="rounded-xl shadow-md mb-4 w-full h-96 object-cover">
+                <div class="flex gap-2 overflow-x-auto pb-2">
+                    <img src="https://images.unsplash.com/photo-1541744573515-478c9597ecd0?w=150&auto=format&fit=crop" class="h-20 w-32 object-cover rounded-lg border-2 border-emerald-500 opacity-100">
+                    <div class="h-20 w-32 object-cover rounded-lg border-2 border-transparent opacity-60 bg-neutral-300 flex items-center justify-center font-bold text-neutral-600">Video Proof ▶</div>
+                </div>
+            </div>
+
+            <!-- Details Section -->
+            <div class="w-full md:w-1/2 p-8 text-left flex flex-col">
+                <span class="text-xs font-bold tracking-wider uppercase text-emerald-600 mb-2">Mysuru, Karnataka • Food</span>
+                <h1 class="text-4xl font-extrabold text-neutral-900 mb-2">Authentic Mysore Pak</h1>
+                <p class="text-neutral-500 mb-4">Handcrafted by <strong class="text-neutral-900">Guru Sweets</strong> (Est. 1950)</p>
+                
+                <div class="flex items-center gap-2 mb-6">
+                    <span class="text-yellow-400 text-xl">★★★★★</span>
+                    <span class="text-neutral-600 text-sm font-medium">4.9 (1,240 Reviews)</span>
+                </div>
+
+                <div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl mb-6">
+                    <strong class="font-bold flex items-center gap-2">✔️ Authenticity Verified</strong>
+                    <p class="text-sm mt-1">Product sourced directly from geographical origin. Made using pure ghee, sugar, and gram flour as per the royal Wadiyar recipe.</p>
+                </div>
+
+                <h3 class="text-lg font-bold mb-2 text-neutral-900">History & Description:</h3>
+                <p class="text-neutral-600 text-sm leading-relaxed mb-6">
+                    Originally created in the kitchens of the Mysore Palace by royal cook Kakasura Madappa, this iconic rich sweet is a symbol of Karnataka's heritage. Melts in the mouth with pure ghee goodness.
+                </p>
+
+                <div class="mt-auto">
+                    <div class="text-4xl font-extrabold text-neutral-900 mb-4" id="display-price">₹650 <span class="text-sm font-medium text-neutral-500">/ 1 kg box</span></div>
+                    <div class="flex gap-4">
+                        <button onclick="handleAddToCart()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition">Add to Cart</button>
+                        <button onclick="openChat()" class="flex-1 bg-neutral-900 hover:bg-black text-white font-bold py-4 rounded-xl shadow transition flex justify-center items-center gap-2">
+                            <span>🤖</span> Query & Negotiate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- AI Chatbot Modal -->
+    <div id="ai-chat" class="fixed inset-0 bg-neutral-900/60 hidden items-end sm:items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col h-[600px] overflow-hidden transform transition-transform">
+            
+            <div class="bg-emerald-600 text-white p-4 flex justify-between items-center z-10 shadow">
+                <div class="flex items-center gap-3">
+                    <div class="text-2xl bg-white rounded-full p-1 h-10 w-10 flex items-center justify-center">🤖</div>
+                    <div>
+                        <h4 class="font-bold text-lg">AI Seller Negotiator</h4>
+                        <p class="text-xs text-emerald-100" id="chat-seller-name">Representing: Seller</p>
+                    </div>
+                </div>
+                <button onclick="closeChat()" class="text-white hover:text-emerald-100 text-xl font-bold">✕</button>
+            </div>
+
+            <div id="chat-messages" class="flex-1 bg-neutral-50 p-4 overflow-y-auto flex flex-col gap-4">
+                <!-- Messages go here -->
+                <div class="bg-white border border-neutral-200 text-neutral-800 p-3 rounded-2xl rounded-tl-none self-start shadow-sm max-w-[85%] text-sm" id="chat-welcome-msg">
+                    Hi! I'm the AI assistant for this seller. How can I help you today?
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t border-neutral-200">
+                <form id="chat-form" class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type an offer (e.g. 'I will pay 500')" class="flex-1 border border-neutral-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" autocomplete="off">
+                    <button type="submit" class="bg-neutral-900 text-white px-6 rounded-xl font-bold hover:bg-black transition">Send</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="db.js"></script>
+    <script>
+        const chatModal = document.getElementById('ai-chat');
+        const msgs = document.getElementById('chat-messages');
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('chat-input');
+        const displayPrice = document.getElementById('display-price');
+
+        // Dynamic Product Loading
+        let currentProduct = null;
+        let currentOffer = 650;
+        let minPrice = 580; // Hidden minimum set by seller
+        let humanEscalation = false;
+
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const prodId = params.get('id') || 'prod_1';
+            
+            const allProducts = getProducts();
+            const prod = allProducts.find(p => p.id === prodId);
+            
+            if (prod) {
+                currentProduct = prod;
+                currentOffer = prod.price;
+                minPrice = Math.floor(prod.price * 0.9); // 10% max discount allowed by AI
+                
+                // Update UI visually
+                document.querySelector('h1').innerText = prod.name;
+                document.querySelector('.text-xs.font-bold').innerText = `${prod.category}`;
+                document.querySelector('.text-neutral-500.mb-4 p, .text-neutral-500.mb-4 strong').outerHTML = `<strong class="text-neutral-900">${prod.sellerName || 'Local Seller'}</strong>`;
+                if(prod.img || prod.image) {
+                     document.querySelector('img.object-cover').src = prod.img || prod.image;
+                }
+                displayPrice.innerHTML = `₹${prod.price} <span class="text-sm font-medium text-neutral-500"></span>`;
+
+                // Update Chat Bot Context
+                document.getElementById('chat-seller-name').innerText = `Representing: ${prod.sellerName || 'Local Artisan'}`;
+                document.getElementById('chat-welcome-msg').innerText = `Hi! I'm the AI assistant for ${prod.sellerName || 'this seller'}. The listing price for ${prod.name} is ₹${prod.price}. Do you have any questions or would you like to negotiate the price?`;
+            } else {
+                // Fallback to prod_1 logic
+                currentOffer = 650;
+            }
+        };
+
+        function openChat() { chatModal.classList.replace('hidden', 'flex'); }
+        function closeChat() { chatModal.classList.replace('flex', 'hidden'); }
+
+        function appendMsg(text, isUser) {
+            msgs.innerHTML += `
+                <div class="${isUser ? 'bg-emerald-600 text-white rounded-br-none self-end' : 'bg-white border border-neutral-200 text-neutral-800 rounded-tl-none self-start'} p-3 rounded-2xl shadow-sm max-w-[85%] text-sm">
+                    ${text}
+                </div>
+            `;
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if(!text) return;
+            
+            appendMsg(text, true);
+            input.value = '';
+
+            setTimeout(() => { analyzeAIResponse(text); }, 800); // simulate thinking
+        });
+
+        function analyzeAIResponse(text) {
+            if(humanEscalation) return;
+
+            const nums = text.match(/\d+/g);
+            if (text.toLowerCase().includes('connect') || text.toLowerCase().includes('human')) {
+                humanEscalation = true;
+                appendMsg("I understand. I am transferring you directly to the seller's WhatsApp. Please hold on.", false);
+                return;
+            }
+
+            if (nums && nums.length > 0) {
+                const userOffer = parseInt(nums[0], 10);
+                const originalPrice = currentProduct ? currentProduct.price : 650;
+                
+                if (userOffer >= originalPrice) {
+                    currentOffer = originalPrice;
+                    appendMsg(`You don't need to pay that much! The original price is ₹${originalPrice}. Let's stick with that!`, false);
+                    updateMainPrice(currentOffer);
+                } else if (userOffer >= currentOffer) {
+                    currentOffer = userOffer;
+                    appendMsg(`Deal! I accept your updated offer of ₹${userOffer} for ${currentProduct ? currentProduct.name : 'the product'}. I've updated the price on the page.`, false);
+                    updateMainPrice(currentOffer);
+                } else if (userOffer >= minPrice) {
+                    currentOffer = userOffer;
+                    appendMsg(`That's a fair negotiation for ${currentProduct ? currentProduct.name : 'this item'}. I can accept ₹${currentOffer}. Deal? I have reduced the price for your session.`, false);
+                    updateMainPrice(currentOffer);
+                } else if (userOffer < minPrice) {
+                    currentOffer = minPrice + Math.floor(Math.random() * 50); // Bot tries to push up
+                    appendMsg(`₹${userOffer} is too low for the authentic quality we offer. The lowest I can counter is ₹${currentOffer}. If you're unhappy, type 'Connect to Human'.`, false);
+                }
+            } else {
+                appendMsg(`Feel free to make an offer. Our ${currentProduct ? currentProduct.name : 'product'} is 100% authentic and high quality!`, false);
+            }
+        }
+
+        function updateMainPrice(newP) {
+            displayPrice.innerHTML = `₹${newP} <span class="text-sm font-medium text-neutral-500 px-2 py-1 bg-yellow-100 rounded text-yellow-800 ml-2">Negotiated Price Applied!</span>`;
+        }
+
+        function handleAddToCart() {
+            const currentP = currentOffer; 
+            const prodId = currentProduct ? currentProduct.id : 'prod_1';
+            
+            // Add item to cart through db.js
+            addToCart(prodId, 1); 
+            
+            // Update button to become a "View Cart" button
+            const btn = document.querySelector('button[onclick="handleAddToCart()"]');
+            if (btn) {
+                btn.innerHTML = 'View Cart 🛒';
+                btn.classList.replace('bg-emerald-600', 'bg-neutral-800');
+                btn.classList.replace('hover:bg-emerald-700', 'hover:bg-neutral-900');
+                
+                // Remove the handleAddToCart onclick to prevent adding multiple times unintentionally
+                btn.removeAttribute('onclick');
+                
+                // Add new behavior to redirect to Cart
+                btn.addEventListener('click', function() {
+                    window.location.href = 'cart.html';
+                });
+            }
+            
+            // Optional: Update cart icon badge if present
+            const badge = document.querySelector('.bg-red-500');
+            if(badge) {
+                let currentCount = parseInt(badge.innerText) || 0;
+                badge.innerText = currentCount + 1;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proceed to Checkout | Local Treasures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-neutral-50 font-sans min-h-screen flex flex-col">
+    
+    <nav class="bg-white shadow flex justify-between items-center px-6 py-4 sticky top-0 z-50">
+        <a href="javascript:history.back()" class="text-xl font-bold text-neutral-900 hover:text-emerald-700 transition">← Back</a>
+        <h1 class="text-xl font-extrabold text-neutral-900 tracking-tight">Secure Checkout</h1>
+        <div class="w-10"></div> <!-- spacer -->
+    </nav>
+
+    <main class="flex-grow max-w-3xl w-full mx-auto px-4 py-8">
+        <div class="bg-white p-8 rounded-3xl shadow-xl border border-neutral-100">
+            <h2 class="text-3xl font-black text-neutral-900 mb-6 border-b pb-4">Buyer Information</h2>
+            
+            <form id="checkout-form" onsubmit="handleProceedToPayment(event)" class="space-y-6">
+                <!-- Personal Info -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-neutral-700 mb-2">Full Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="buyer-name" required class="w-full p-4 border border-neutral-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition" placeholder="Enter your full name">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-neutral-700 mb-2">Email Address <span class="text-red-500">*</span></label>
+                        <input type="email" id="buyer-email" required class="w-full p-4 border border-neutral-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition" placeholder="you@example.com">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-neutral-700 mb-2">Phone Number <span class="text-red-500">*</span></label>
+                    <input type="tel" id="buyer-phone" required class="w-full p-4 border border-neutral-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition" placeholder="+91 98765 43210">
+                </div>
+
+                <div class="pt-4 border-t">
+                    <label class="block text-sm font-bold text-neutral-700 mb-2">Delivery Address <span class="text-red-500">*</span></label>
+                    <textarea id="buyer-address" required class="w-full p-4 border border-neutral-300 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition resize-none" rows="3" placeholder="Enter complete shipping address including pin code..."></textarea>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="pt-4 border-t">
+                    <label class="block text-sm font-bold text-neutral-700 mb-4">Payment Method</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="flex items-center gap-3 p-4 border border-emerald-200 bg-emerald-50 rounded-xl cursor-pointer hover:bg-emerald-100 transition ring-2 ring-emerald-500">
+                            <input type="radio" name="payment" value="UPI" class="text-emerald-600 focus:ring-emerald-500 w-5 h-5" checked>
+                            <span class="font-bold text-emerald-900">Pay with Stripe (UPI/Card)</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 border border-neutral-200 bg-white rounded-xl cursor-pointer hover:bg-neutral-50 transition">
+                            <input type="radio" name="payment" value="COD" class="text-emerald-600 focus:ring-emerald-500 w-5 h-5">
+                            <span class="font-bold text-neutral-800">Cash on Delivery</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Stripe Elements Container (Hidden by default, shown if UPI/Stripe selected) -->
+                <div id="stripe-container" class="pt-4 mt-2">
+                    <div class="flex gap-2 mb-4 bg-neutral-100 p-1 rounded-lg w-fit">
+                        <button type="button" id="tab-card" class="px-4 py-1 text-sm font-bold bg-white shadow-sm rounded-md text-emerald-600">Card</button>
+                        <button type="button" id="tab-upi" class="px-4 py-1 text-sm font-bold text-neutral-500 hover:text-neutral-700">UPI</button>
+                    </div>
+
+                    <div id="card-view">
+                        <label class="block text-sm font-bold text-neutral-700 mb-2">Test Card Details</label>
+                        <div id="card-element" class="p-4 border border-neutral-300 rounded-xl bg-white">
+                            <!-- A Stripe Element will be inserted here. -->
+                        </div>
+                        <p class="text-xs text-neutral-500 mt-2">Use Stripe test cards like 4242 4242 4242 4242.</p>
+                    </div>
+
+                    <div id="upi-view" class="hidden">
+                        <label class="block text-sm font-bold text-neutral-700 mb-2">Virtual Payment Address (VPA)</label>
+                        <input type="text" id="upi-id" placeholder="test@upi, okicici, etc." class="w-full p-4 border border-neutral-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        <p class="text-xs text-neutral-500 mt-2">Enter any valid test VPA format (e.g. yourname@paytm) to mock Stripe UPI.</p>
+                    </div>
+
+                    <div id="card-errors" role="alert" class="text-red-500 text-sm mt-3 font-bold"></div>
+                </div>
+
+                <button type="submit" id="proceed-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-black py-5 rounded-2xl shadow-lg transition transform hover:-translate-y-1 mt-4">
+                    Proceed to Payment / Checkout
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-neutral-900/80 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl transform scale-95 transition-transform" id="modal-box">
+            <div class="h-20 w-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">🎉</div>
+            <h2 class="text-2xl font-black text-neutral-900 mb-2">Order Confirmed!</h2>
+            <p class="text-neutral-500 mb-6 border-b pb-4">Thank you for supporting local artisans.</p>
+            
+            <div class="text-left text-sm space-y-2 mb-6 bg-neutral-50 p-4 rounded-xl">
+                <div class="flex justify-between"><span>Order ID:</span> <strong class="text-neutral-900" id="display-order-id">#LT-00000</strong></div>
+                <div class="flex justify-between"><span>To:</span> <strong class="text-neutral-900 max-w-[120px] truncate" id="display-name">Buyer</strong></div>
+                <div class="flex justify-between"><span>Method:</span> <strong id="paid-via" class="text-emerald-700">UPI</strong></div>
+            </div>
+
+            <button onclick="window.location.href='orders.html'" class="w-full bg-emerald-600 shadow-md text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition mb-3">Track Shipment Progress</button>
+            <button onclick="window.location.href='buyer-dashboard.html'" class="w-full bg-neutral-100 text-neutral-600 font-bold py-3 rounded-xl hover:bg-neutral-200 transition">Back to Home</button>
+        </div>
+    </div>
+
+    <!-- UPI App Simulator Modal -->
+    <div id="upi-waiting-modal" class="fixed inset-0 bg-neutral-900/90 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div class="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">📱</div>
+            <h2 class="text-xl font-black text-neutral-900 mb-2">UPI Payment Simulator</h2>
+            <p class="text-neutral-600 mb-4 text-sm">Paying <strong class="text-neutral-900">Local Treasures</strong><br>from <span id="display-vpa" class="font-mono pt-1 inline-block"></span></p>
+            
+            <div class="bg-neutral-100 p-4 rounded-xl mb-6 text-left">
+                <p class="text-xs text-neutral-500 mb-2 text-center">Enter 4-digit UPI PIN</p>
+                <input type="password" id="mock-upi-pin" maxlength="4" class="w-full text-center tracking-[1em] text-3xl p-3 border border-neutral-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••">
+            </div>
+            
+            <button id="simulate-upi-pay-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition">
+                Securely Pay Now
+            </button>
+
+            <button id="simulate-upi-cancel-btn" class="w-full text-neutral-500 font-bold py-3 rounded-xl hover:text-red-500 transition mt-2">
+                Decline
+            </button>
+        </div>
+    </div>
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="db.js"></script>
+    <script>
+        // Stripe Test Setup
+        const stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Stripe provides this default public test key for UI scaffolding
+        const elements = stripe.elements();
+        const style = { base: { color: '#32325d', fontFamily: 'sans-serif', fontSmoothing: 'antialiased', fontSize: '16px', '::placeholder': { color: '#aab7c4' } }, invalid: { color: '#fa755a', iconColor: '#fa755a' } };
+        const card = elements.create('card', {style: style});
+        
+        let selectedStripeMethod = 'card'; // Default
+        
+        // Auto-fill if user is logged in
+        window.onload = function() {
+            card.mount('#card-element'); // Initialize the Stripe Element in the DIV
+
+            card.on('change', function(event) {
+                var displayError = document.getElementById('card-errors');
+                if (event.error) {
+                    displayError.textContent = event.error.message;
+                } else {
+                    displayError.textContent = '';
+                }
+            });
+
+            // Handle UI tabs
+            document.getElementById('tab-card').addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedStripeMethod = 'card';
+                document.getElementById('upi-view').classList.add('hidden');
+                document.getElementById('card-view').classList.remove('hidden');
+                e.target.classList.add('bg-white', 'shadow-sm', 'text-emerald-600');
+                e.target.classList.remove('text-neutral-500', 'hover:text-neutral-700');
+                const upiBtn = document.getElementById('tab-upi');
+                upiBtn.classList.remove('bg-white', 'shadow-sm', 'text-emerald-600');
+                upiBtn.classList.add('text-neutral-500', 'hover:text-neutral-700');
+            });
+            
+            document.getElementById('tab-upi').addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedStripeMethod = 'upi';
+                document.getElementById('card-view').classList.add('hidden');
+                document.getElementById('upi-view').classList.remove('hidden');
+                e.target.classList.add('bg-white', 'shadow-sm', 'text-emerald-600');
+                e.target.classList.remove('text-neutral-500', 'hover:text-neutral-700');
+                const cardBtn = document.getElementById('tab-card');
+                cardBtn.classList.remove('bg-white', 'shadow-sm', 'text-emerald-600');
+                cardBtn.classList.add('text-neutral-500', 'hover:text-neutral-700');
+            });
+
+            const user = getCurrentUser();
+            if (user) {
+                document.getElementById('buyer-name').value = user.name || '';
+                document.getElementById('buyer-email').value = user.email || '';
+            }
+
+            const stripeDiv = document.getElementById('stripe-container');
+            // Hide on initial load
+            stripeDiv.style.display = 'none';
+
+            // UI logic for radio buttons
+            const radios = document.querySelectorAll('input[name="payment"]');
+            radios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    // Update Stripe Container Visibility
+                    if (e.target.value === 'UPI') {
+                        stripeDiv.style.display = 'block';
+                    } else {
+                        stripeDiv.style.display = 'none';
+                    }
+
+                    document.querySelectorAll('label').forEach(l => {
+                        if(l.querySelector('input[name="payment"]')) {
+                            l.classList.remove('bg-emerald-50', 'border-emerald-200', 'ring-2', 'ring-emerald-500');
+                            l.classList.add('bg-white', 'border-neutral-200');
+                        }
+                    });
+                    const parent = e.target.closest('label');
+                    parent.classList.remove('bg-white', 'border-neutral-200');
+                    parent.classList.add('bg-emerald-50', 'border-emerald-200', 'ring-2', 'ring-emerald-500');
+                });
+            });
+        };
+
+        async function handleProceedToPayment(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('buyer-name').value;
+            const email = document.getElementById('buyer-email').value;
+            const phone = document.getElementById('buyer-phone').value;
+            const address = document.getElementById('buyer-address').value;
+            const method = document.querySelector('input[name="payment"]:checked').value;
+            let methodToDisplay = '';
+
+            const btn = document.getElementById('proceed-btn');
+            btn.innerHTML = '<span class="animate-pulse">Processing Secure Payment...</span>';
+            btn.disabled = true;
+            btn.classList.replace('bg-emerald-600', 'bg-neutral-400');
+            const errorElement = document.getElementById('card-errors');
+            errorElement.textContent = ''; // clear previous err
+
+            if (method === 'UPI') {
+                if (selectedStripeMethod === 'card') {
+                    // If using Stripe Card
+                    const {token, error} = await stripe.createToken(card);
+                    if (error) {
+                        errorElement.textContent = error.message;
+                        btn.innerHTML = 'Proceed to Payment / Checkout';
+                        btn.disabled = false;
+                        btn.classList.replace('bg-neutral-400', 'bg-emerald-600');
+                        return; // Stop checkout process entirely
+                    } 
+                    console.log("Stripe Token Generated For Testing (Card):", token);
+                    methodToDisplay = 'Stripe Card (Tested)';
+                } else if (selectedStripeMethod === 'upi') {
+                    // Validating UPI input manually for mock
+                    const upiId = document.getElementById('upi-id').value.trim();
+                    if(!upiId || !upiId.includes('@')) {
+                        errorElement.textContent = "Please enter a valid Virtual Payment Address (e.g. test@upi).";
+                        btn.innerHTML = 'Proceed to Payment / Checkout';
+                        btn.disabled = false;
+                        btn.classList.replace('bg-neutral-400', 'bg-emerald-600');
+                        return;
+                    }
+                    
+                    // Native Stripe UPI test intent simulation
+                    console.log(`Stripe Mock UPI Proceeding with VPA: ${upiId}`);
+                    // Instead of automatic success, launch the UPI App simulation modal
+                    document.getElementById('display-vpa').innerText = upiId;
+                    document.getElementById('mock-upi-pin').value = ''; // Reset PIN
+                    document.getElementById('upi-waiting-modal').classList.replace('hidden', 'flex');
+
+                    // Wait for simulated approval or cancellation
+                    const upiStatus = await new Promise((resolve) => {
+                        const cancelBtn = document.getElementById('simulate-upi-cancel-btn');
+                        const payBtn = document.getElementById('simulate-upi-pay-btn');
+                        
+                        const cancelHandler = () => {
+                            payBtn.removeEventListener('click', payHandler);
+                            cancelBtn.removeEventListener('click', cancelHandler);
+                            resolve('cancelled');
+                        };
+
+                        const payHandler = () => {
+                            const pin = document.getElementById('mock-upi-pin').value;
+                            if (pin.length < 4) {
+                                alert("Please enter a 4-digit PIN for testing.");
+                                return;
+                            }
+                            payBtn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+                            
+                            // Simulate network processing of PIN
+                            setTimeout(() => {
+                                payBtn.innerHTML = 'Securely Pay Now';
+                                payBtn.removeEventListener('click', payHandler);
+                                cancelBtn.removeEventListener('click', cancelHandler);
+                                resolve('success');
+                            }, 1000);
+                        };
+
+                        cancelBtn.addEventListener('click', cancelHandler);
+                        payBtn.addEventListener('click', payHandler);
+                    });
+
+                    document.getElementById('upi-waiting-modal').classList.replace('flex', 'hidden');
+
+                    if(upiStatus === 'cancelled') {
+                        errorElement.textContent = "Transaction was declined by user.";
+                        btn.innerHTML = 'Proceed to Payment / Checkout';
+                        btn.disabled = false;
+                        btn.classList.replace('bg-neutral-400', 'bg-emerald-600');
+                        return;
+                    }
+
+                    methodToDisplay = `UPI App (VPA: ${upiId})`;
+                }
+            } else {
+                methodToDisplay = 'Cash on Delivery';
+            }
+
+            setTimeout(() => {
+                // Deduct stock in DB & Create Order 
+                const currentUser = getCurrentUser();
+                let products = getProducts();
+                let cart = getCart();
+                let orderItems = [];
+
+                if(cart.length > 0) {
+                    cart.forEach(item => {
+                        let prod = products.find(p => p.id === item.productId);
+                        if(prod) {
+                            orderItems.push(prod.name);
+                            if(prod.stock > 0) prod.stock -= item.qty;
+                        }
+                    });
+                } else {
+                    // Fallback for direct checkout without cart
+                    orderItems.push("Direct Purchase Item");
+                }
+
+                saveProducts(products);
+                
+                const orderId = 'LT-' + Math.floor(Math.random() * 100000);
+                createOrder({
+                    id: orderId,
+                    buyerId: currentUser ? currentUser.id : 'guest_' + Date.now(),
+                    buyerName: name,
+                    buyerPhone: phone,
+                    buyerAddress: address,
+                    items: orderItems,
+                    total: 'Calculated at Checkout', // simplistic mock
+                    status: 'Paid',
+                    method: methodToDisplay
+                });
+
+                // Clear the cart
+                clearCart();
+
+                document.getElementById('display-order-id').innerText = orderId;
+                document.getElementById('display-name').innerText = name;
+                document.getElementById('paid-via').innerText = methodToDisplay;
+
+                document.getElementById('success-modal').classList.replace('hidden', 'flex');
+                setTimeout(() => document.getElementById('modal-box').classList.replace('scale-95', 'scale-100'), 10);
+            }, 1000); // Shorter success timeout since we already waited for UPI
+        }
+    </script>
+</body>
+</html>

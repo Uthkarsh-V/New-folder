@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buyer Dashboard | Local Treasures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 500px; width: 100%; border-radius: 1rem; z-index: 10; }
+        .bg-waves {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: #f9f9f9;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .bg-waves canvas { width: 100%; height: 100%; }
+        .bg-waves-glow {
+            position: absolute;
+            width: 40vmax; height: 40vmax;
+            background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+            border-radius: 50%;
+            top: var(--y, 50%); left: var(--x, 50%);
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="bg-transparent font-sans relative">
+    <div class="bg-waves">
+        <canvas id="waves-canvas"></canvas>
+        <div class="bg-waves-glow"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow flex justify-between items-center px-6 py-4 sticky top-0 z-50">
+        <a href="index.html" class="text-2xl font-bold text-neutral-900">Local Treasures</a>
+        <div class="flex items-center gap-6">
+            <div class="relative w-64 hidden sm:block">
+                <input type="text" id="city-search" placeholder="Search city (e.g., Mysuru, Kanchipuram)" class="w-full bg-neutral-100 border-none rounded-full py-2 px-4 focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-sm">
+            </div>
+            <a href="cart.html" class="relative text-neutral-600 hover:text-emerald-600 transition">
+                <span class="text-2xl">🛒</span>
+                <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">2</span>
+            </a>
+            <div class="group relative">
+                <button tabindex="0" class="bg-neutral-200 h-10 w-10 text-xl rounded-full flex items-center justify-center overflow-hidden cursor-pointer">👤</button>
+                <div class="hidden group-focus-within:block absolute right-0 mt-2 w-48 bg-white border border-neutral-100 rounded-xl shadow-lg py-2 z-[60]">
+                    <a href="#" class="block px-4 py-2 hover:bg-emerald-50 text-sm">Profile</a>
+                    <a href="orders.html" class="block px-4 py-2 hover:bg-emerald-50 text-sm">My Orders</a>
+                    <a href="index.html" class="block px-4 py-2 text-red-600 hover:bg-red-50 py-2 border-t text-sm mt-2">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Controls & Filters -->
+        <div class="flex flex-wrap justify-between items-end mb-6 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-neutral-900">Discover Exclusive Crafts</h1>
+                <p class="text-neutral-500">Explore the map to find authentic products directly from regional artisans.</p>
+            </div>
+            <select id="category-filter" class="p-3 bg-white border border-neutral-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="All">All Categories</option>
+                <option value="Food">Food / Sweets</option>
+                <option value="Textiles">Textiles & Silk</option>
+                <option value="Handicrafts">Handicrafts</option>
+                <option value="Spices">Spices</option>
+                <option value="Art">Art & Paintings</option>
+                <option value="Jewelry">Jewelry & Pearls</option>
+            </select>
+        </div>
+
+        <!-- The Map -->
+        <div id="map" class="shadow-md border border-neutral-300 mb-12"></div>
+
+        <!-- Top Rated Products Section (Below the map) -->
+        <h2 class="text-2xl font-bold mb-6 text-neutral-900">Top Rated Treasures</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="product-grid">
+            <!-- Populated via JS -->
+        </div>
+
+    </main>
+
+        <script src="db.js"></script>
+        <script>
+        // Fetch LIVE completely dynamic products from DB layer instead of caching old static copy
+        const products = getProducts();
+
+        // Initialize Map
+        const map = L.map('map').setView([20.5937, 78.9629], 5); // Default to India center
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: ' OpenStreetMap'
+        }).addTo(map);
+
+        let markers = [];
+
+        function renderMapAndGrid(filterCat, searchQuery = "") {
+            // clear old markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+            
+            const q = searchQuery.toLowerCase();
+
+            // Refresh products globally to ensure real-time changes are captured
+            const allProductsList = getProducts();
+
+            // Filter
+            const filtered = allProductsList.filter(p => {
+                if (filterCat !== 'All' && p.category !== filterCat) return false;
+                
+                if (q) {
+                    // Match coordinates to region based on query string
+                    if (q.includes("kanchi") || q.includes("tamil") || q.includes("chennai") || q.includes("madurai")) {
+                        return Math.abs(p.lat - 12.8) < 4; 
+                    } else if (q.includes("mysur") || q.includes("karn") || q.includes("bengaluru") || q.includes("coorg")) {
+                        return Math.abs(p.lat - 12.2) < 4; 
+                    } else if (q.includes("kashm") || q.includes("srinagar")) {
+                        return Math.abs(p.lat - 34.0) < 4; 
+                    } else if (q.includes("jaipur") || q.includes("rajas") || q.includes("pink")) {
+                        return Math.abs(p.lat - 26.9) < 5; 
+                    } else if (q.includes("kerala") || q.includes("munnar") || q.includes("kochi")) {
+                        return Math.abs(p.lat - 10.0) < 4; 
+                    } else if (q.includes("lucknow") || q.includes("up") || q.includes("varanasi") || q.includes("agra")) {
+                        return Math.abs(p.lat - 26.8) < 5; 
+                    } else if (q.includes("darjeeling") || q.includes("kolkata") || q.includes("bengal")) {
+                        return Math.abs(p.lat - 22.5) < 7; 
+                    } else if (q.includes("goa")) {
+                        return Math.abs(p.lat - 15.2) < 3; 
+                    } else if (q.includes("andhra") || q.includes("guntur") || q.includes("kondapalli")) {
+                        return Math.abs(p.lat - 16.5) < 5; 
+                    } else if (q.includes("gujarat") || q.includes("patan") || q.includes("ahmedabad")) {
+                        return Math.abs(p.lat - 23.2) < 5; 
+                    } else {
+                        return p.name.toLowerCase().includes(q) || p.seller.toLowerCase().includes(q);
+                    }
+                }
+                return true;
+            });
+
+            // Adjust Map Center dynamically based on search
+            if(q) {
+                if (q.includes("kanchi") || q.includes("tamil") || q.includes("chennai") || q.includes("madurai")) {
+                    map.flyTo([12.8185, 79.6947], 7);
+                } else if (q.includes("mysur") || q.includes("karn") || q.includes("coorg") || q.includes("bengaluru")) {
+                    map.flyTo([12.2958, 76.6394], 7);
+                } else if (q.includes("kashm") || q.includes("srinagar")) {
+                    map.flyTo([34.0837, 74.7973], 7);
+                } else if (q.includes("jaipur") || q.includes("rajas") || q.includes("pink")) {
+                    map.flyTo([26.9124, 75.7873], 7);
+                } else if (q.includes("kerala") || q.includes("munnar") || q.includes("kochi")) {
+                    map.flyTo([10.0892, 77.0595], 7);
+                } else if (q.includes("lucknow") || q.includes("up") || q.includes("varanasi") || q.includes("agra")) {
+                    map.flyTo([26.8467, 80.9462], 7);
+                } else if (q.includes("darjeeling") || q.includes("kolkata") || q.includes("bengal")) {
+                    map.flyTo([22.5726, 88.3639], 7);
+                } else if (q.includes("goa")) {
+                    map.flyTo([15.2993, 74.1240], 7);
+                } else if (q.includes("andhra") || q.includes("guntur") || q.includes("kondapalli")) {
+                    map.flyTo([16.5062, 80.6480], 7);
+                } else if (q.includes("gujarat") || q.includes("patan") || q.includes("ahmedabad")) {
+                    map.flyTo([23.2156, 72.6369], 7);
+                }
+            } else {
+                map.flyTo([20.5937, 78.9629], 5);
+            }
+
+            if(filtered.length === 0) {
+                 grid.innerHTML = '<p class="text-neutral-500 col-span-4 mt-4 text-left ml-4">No products found for this region/search terminology.</p>';
+            }
+
+            filtered.forEach(p => {
+                // Add marker to map
+                const marker = L.marker([p.lat, p.lng]).addTo(map)
+                    .bindPopup(`
+                        <div class="text-sm">
+                            <span class="text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded mb-1 inline-block">${p.category}</span>
+                            <h3 class="font-bold text-gray-900 mt-1">${p.name}</h3>
+                            <p class="text-gray-500 text-xs mb-2">Sold by: ${p.seller}</p>
+                            <div class="flex justify-between items-center mt-2 border-t pt-2">
+                                <span class="font-bold text-emerald-700">₹${p.price}</span>
+                                <a href="product.html?id=${p.id}" class="bg-gray-900 text-white px-2 py-1 rounded text-xs hover:bg-gray-800">View</a>
+                            </div>
+                        </div>
+                    `);
+                markers.push(marker);
+
+                // Populate Top Products Grid
+                grid.innerHTML += `
+                    <div class="bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden hover:shadow-md transition flex flex-col">
+                        <img src="${p.img}" class="w-full h-48 object-cover" alt="${p.name}">
+                        <div class="p-4 flex-grow flex flex-col">
+                            <div>
+                                <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">${p.category}</span>
+                                <h3 class="font-bold text-neutral-900 mt-2 leading-tight">${p.name}</h3>       
+                                <p class="text-sm text-neutral-500 mb-3">By ${p.sellerName || p.seller}</p>
+                            </div>
+                            <div class="flex justify-between items-center mt-auto">
+                                <span class="font-extrabold text-lg text-emerald-700">₹${p.price}</span> 
+                                <a href="product.html?id=${p.id}" class="bg-neutral-900 text-white px-4 py-2 text-sm rounded-lg hover:bg-neutral-800">Buy/Query</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        renderMapAndGrid('All');
+
+        // Category Filter
+        document.getElementById('category-filter').addEventListener('change', (e) => {
+            renderMapAndGrid(e.target.value, document.getElementById('city-search').value);
+        });
+
+        // Dynamic City Search Simulation
+        const searchInput = document.getElementById('city-search');
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                renderMapAndGrid(document.getElementById('category-filter').value, e.target.value);
+            }
+        });
+    </script>
+    <!-- Perlin Noise Waves Library (Modified for HTML) -->
+    <script>
+        (function(global){var module=global.noise={};function Grad(x,y,z){this.x=x;this.y=y;this.z=z;}
+        Grad.prototype.dot2=function(x,y){return this.x*x+this.y*y;};
+        Grad.prototype.dot3=function(x,y,z){return this.x*x+this.y*y+this.z*z;};
+        var grad3=[new Grad(1,1,0),new Grad(-1,1,0),new Grad(1,-1,0),new Grad(-1,-1,0),
+        new Grad(1,0,1),new Grad(-1,0,1),new Grad(1,0,-1),new Grad(-1,0,-1),
+        new Grad(0,1,1),new Grad(0,-1,1),new Grad(0,1,-1),new Grad(0,-1,-1)];
+        var p=[151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
+        var perm=new Array(512);var gradP=new Array(512);
+        module.seed=function(seed){if(seed>0&&seed<1){seed*=65536;}seed=Math.floor(seed);if(seed<256){seed|=seed<<8;}for(var i=0;i<256;i++){var v;if(i&1){v=p[i]^(seed&255);}else{v=p[i]^((seed>>8)&255);}perm[i]=perm[i+256]=v;gradP[i]=gradP[i+256]=grad3[v%12];}};module.seed(0);
+        function fade(t){return t*t*t*(t*(t*6-15)+10);}function lerp(a,b,t){return(1-t)*a+t*b;}
+        module.perlin2=function(x,y){var X=Math.floor(x),Y=Math.floor(y);x=x-X;y=y-Y;X=X&255;Y=Y&255;var n00=gradP[X+perm[Y]].dot2(x,y);var n01=gradP[X+perm[Y+1]].dot2(x,y-1);var n10=gradP[X+1+perm[Y]].dot2(x-1,y);var n11=gradP[X+1+perm[Y+1]].dot2(x-1,y-1);var u=fade(x);return lerp(lerp(n00,n10,u),lerp(n01,n11,u),fade(y));};
+        })(this);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const container = document.querySelector('.bg-waves');
+            const canvas = document.getElementById('waves-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const config = {
+                lineColor: "rgba(16, 185, 129, 0.15)",
+                waveSpeedX: 0.0125,
+                waveSpeedY: 0.005,
+                waveAmpX: 32,
+                waveAmpY: 16,
+                xGap: 18,
+                yGap: 36,
+                friction: 0.925,
+                tension: 0.005,
+                maxCursorMove: 100,
+            };
+
+            const mouse = { x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0, v: 0, vs: 0, a: 0, set: false };
+            let bounding = { width: 0, height: 0, left: 0, top: 0 };
+            let linesInfo = [];
+            let frameId = null;
+
+            function setSize() {
+                bounding = container.getBoundingClientRect();
+                canvas.width = bounding.width;
+                canvas.height = bounding.height;
+            }
+
+            function setLines() {
+                if (frameId) cancelAnimationFrame(frameId);
+                linesInfo = [];
+                const padding = Math.max(config.waveAmpX, config.waveAmpY, config.maxCursorMove) * 2;   
+                
+                // Add vertical lines
+                for (let x = -padding; x < bounding.width + padding; x += config.xGap) {
+                    const pts = [];
+                    for (let y = -padding; y < bounding.height + padding; y += config.yGap) {
+                        pts.push({ x, y, wave: { x: 0, y: 0 }, cursor: { x: 0, y: 0, vx: 0, vy: 0 } }); 
+                    }
+                    linesInfo.push(pts);
+                }
+
+                // Add horizontal lines
+                for (let y = -padding; y < bounding.height + padding; y += config.yGap) {
+                    const pts = [];
+                    for (let x = -padding; x < bounding.width + padding; x += config.xGap) {
+                        pts.push({ x, y, wave: { x: 0, y: 0 }, cursor: { x: 0, y: 0, vx: 0, vy: 0 } }); 
+                    }
+                    linesInfo.push(pts);
+                }
+            }
+
+            function movePoints(time) {
+                linesInfo.forEach(pts => {
+                    pts.forEach(p => {
+                        const move = noise.perlin2((p.x + time * config.waveSpeedX) * 0.002, (p.y + time * config.waveSpeedY) * 0.0015) * 12;
+                        p.wave.x = Math.cos(move) * config.waveAmpX;
+                        p.wave.y = Math.sin(move) * config.waveAmpY;
+
+                        const dx = p.x - mouse.sx, dy = p.y - mouse.sy;
+                        const dist = Math.hypot(dx, dy), l = Math.max(175, mouse.vs);
+                        if (dist < l) {
+                            const s = 1 - dist / l;
+                            const f = Math.cos(dist * 0.001) * s;
+                            p.cursor.vx += Math.cos(mouse.a) * f * l * mouse.vs * 0.00065;
+                            p.cursor.vy += Math.sin(mouse.a) * f * l * mouse.vs * 0.00065;
+                        }
+
+                        p.cursor.vx += (0 - p.cursor.x) * config.tension;
+                        p.cursor.vy += (0 - p.cursor.y) * config.tension;
+                        p.cursor.vx *= config.friction;
+                        p.cursor.vy *= config.friction;
+                        p.cursor.x += p.cursor.vx * 2;
+                        p.cursor.y += p.cursor.vy * 2;
+                        p.cursor.x = Math.min(config.maxCursorMove, Math.max(-config.maxCursorMove, p.cursor.x));
+                        p.cursor.y = Math.min(config.maxCursorMove, Math.max(-config.maxCursorMove, p.cursor.y));
+                    });
+                });
+            }
+
+            function moved(point, withCursor = true) {
+                const x = point.x + point.wave.x + (withCursor ? point.cursor.x : 0);
+                const y = point.y + point.wave.y + (withCursor ? point.cursor.y : 0);
+                return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+            }
+
+            function drawLines() {
+                ctx.clearRect(0, 0, bounding.width, bounding.height);
+                ctx.beginPath();
+                ctx.strokeStyle = config.lineColor;
+                linesInfo.forEach(points => {
+                    let p1 = moved(points[0], false);
+                    ctx.moveTo(p1.x, p1.y);
+                    points.forEach((p, idx) => {
+                        const isLast = idx === points.length - 1;
+                        p1 = moved(p, !isLast);
+                        const p2 = moved(points[idx + 1] || points[points.length - 1], !isLast);
+                        ctx.lineTo(p1.x, p1.y);
+                        if (isLast) ctx.moveTo(p2.x, p2.y);
+                    });
+                });
+                ctx.stroke();
+            }
+
+            function tick(t) {
+                mouse.sx += (mouse.x - mouse.sx) * 0.1;
+                mouse.sy += (mouse.y - mouse.sy) * 0.1;
+                const dx = mouse.x - mouse.lx, dy = mouse.y - mouse.ly;
+                const d = Math.hypot(dx, dy);
+                mouse.v = d;
+                mouse.vs += (d - mouse.vs) * 0.1;
+                mouse.vs = Math.min(100, mouse.vs);
+                mouse.lx = mouse.x;
+                mouse.ly = mouse.y;
+                mouse.a = Math.atan2(dy, dx);
+                container.style.setProperty('--x', `${mouse.sx}px`);
+                container.style.setProperty('--y', `${mouse.sy}px`);
+
+                movePoints(t);
+                drawLines();
+                frameId = requestAnimationFrame(tick);
+            }
+
+            function onResize() { setSize(); setLines(); }
+            function updateMouse(x, y) {
+                mouse.x = x - bounding.left;
+                mouse.y = y - bounding.top;
+                if (!mouse.set) {
+                    mouse.sx = mouse.x; mouse.sy = mouse.y;
+                    mouse.lx = mouse.x; mouse.ly = mouse.y;
+                    mouse.set = true;
+                }
+            }
+
+            setSize();
+            setLines();
+            window.addEventListener('resize', onResize);
+            window.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => updateMouse(e.touches[0].clientX, e.touches[0].clientY), { passive: false });
+
+            frameId = requestAnimationFrame(tick);
+        });
+    </script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seller Dashboard | Local Treasures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .bg-waves {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: transparent;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .bg-waves canvas { width: 100%; height: 100%; }
+        .bg-waves-glow {
+            position: absolute;
+            width: 40vmax; height: 40vmax;
+            background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+            border-radius: 50%;
+            top: var(--y, 50%); left: var(--x, 50%);
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="bg-neutral-100 font-sans flex h-screen overflow-hidden relative">
+    <div class="bg-waves">
+        <canvas id="waves-canvas"></canvas>
+        <div class="bg-waves-glow"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <script src="db.js"></script>
+    <aside class="w-64 bg-neutral-900 text-white flex flex-col">
+        <div class="p-6 text-2xl font-extrabold tracking-tight border-b border-neutral-800">
+            LocalTreasures<span class="text-emerald-500 block text-sm font-medium mt-1">Seller Hub</span>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="switchTab('inventory')" id="tab-inventory" class="w-full text-left p-3 rounded-lg bg-emerald-600 font-bold transition">📦 Product Inventory</button>
+            <button onclick="switchTab('orders')" id="tab-orders" class="w-full text-left p-3 rounded-lg hover:bg-neutral-800 font-medium transition text-neutral-300">🚚 Orders Tracking</button>
+            <button onclick="switchTab('finance')" id="tab-finance" class="w-full text-left p-3 rounded-lg hover:bg-neutral-800 font-medium transition text-neutral-300">💰 Financials</button>
+        </nav>
+        <div class="p-6 border-t border-neutral-800">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 bg-yellow-600 rounded-full flex items-center justify-center font-bold text-white shadow-md">G</div>
+                <div>
+                    <p class="font-bold text-sm">Guru Sweets</p>
+                    <a href="index.html" class="text-xs text-red-400 hover:text-red-300">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 overflow-y-auto p-8 relative">
+        
+        <!-- Inventory View -->
+        <div id="view-inventory" class="block">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-neutral-900">Inventory Management</h1>
+                    <p class="text-neutral-500">Manage listings, prices, and AI boundaries.</p>
+                </div>
+                <button onclick="openAddProductModal()" class="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-emerald-700">+ Add Product</button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+                <table class="w-full text-left border-collapse" id="inventory-table">
+                    <thead>
+                        <tr class="bg-neutral-50 text-neutral-500 text-sm border-b">
+                            <th class="p-4 font-semibold">Product Name</th>
+                            <th class="p-4 font-semibold">Category</th>
+                            <th class="p-4 font-semibold">Stock</th>
+                            <th class="p-4 font-semibold">List Price</th>
+                            <th class="p-4 font-semibold text-emerald-700 bg-emerald-50">AI Min Price</th>
+                            <th class="p-4 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <tr class="border-b border-neutral-100 hover:bg-neutral-50">
+                            <td class="p-4 flex items-center gap-3 font-bold"><div class="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center text-xl">🍬</div> Authentic Mysore Pak</td>
+                            <td class="p-4">Food</td>
+                            <td class="p-4"><span class="px-2 py-1 bg-green-100 text-green-800 font-bold rounded-full text-xs">80 kg left</span></td>
+                            <td class="p-4">₹650</td>
+                            <td class="p-4 bg-emerald-50 text-emerald-800 font-bold">₹580</td>
+                            <td class="p-4 text-right"><button onclick="editProduct(this)" class="text-blue-600 hover:underline">Edit</button></td>
+                        </tr>
+                        <tr class="hover:bg-neutral-50">
+                            <td class="p-4 flex items-center gap-3 font-bold"><div class="h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center text-xl">✨</div> Premium Ghee Halwa</td>
+                            <td class="p-4">Food</td>
+                            <td class="p-4"><span class="px-2 py-1 bg-red-100 text-red-800 font-bold rounded-full text-xs">2 kg left</span></td>
+                            <td class="p-4">₹500</td>
+                            <td class="p-4 bg-emerald-50 text-emerald-800 font-bold">₹450</td>
+                            <td class="p-4 text-right"><button onclick="editProduct(this)" class="text-blue-600 hover:underline">Edit</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders View -->
+        <div id="view-orders" class="hidden">
+            <h1 class="text-3xl font-bold text-neutral-900 mb-2">Order Fulfillment</h1>
+            <div class="flex gap-4 mb-6">
+                <input type="text" placeholder="Search Order ID..." class="p-2 border rounded-lg max-w-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+                <select class="p-2 border rounded-lg bg-white"><option>All Statuses</option><option>Pending</option><option>Shipped</option></select>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+                <table class="w-full text-left border-collapse" id="orders-table">
+                    <thead>
+                        <tr class="bg-neutral-50 text-neutral-500 text-sm border-b">
+                            <th class="p-4">Order ID</th><th class="p-4">Items</th><th class="p-4">Total</th><th class="p-4">Status</th><th class="p-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Finance View -->
+        <div id="view-finance" class="hidden">
+            <h1 class="text-3xl font-bold text-neutral-900 mb-6">Financial Overview</h1>
+            <div class="grid grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl border border-neutral-200 shadow-sm border-l-4 border-l-emerald-500">
+                    <p class="text-neutral-500 text-sm">Total Revenue (This Month)</p>
+                    <p class="text-3xl font-extrabold mt-2">₹1,45,200</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-neutral-200 shadow-sm">
+                    <p class="text-neutral-500 text-sm">Active AI Negotiations</p>
+                    <p class="text-3xl font-extrabold mt-2 text-neutral-800">4</p>
+                </div>
+            </div>
+            <p class="text-neutral-500">Charts and monthly withdrawal options go here.</p>
+        </div>
+
+    </main>
+
+    <!-- Add Product Modal -->
+    <div id="add-product-modal" class="fixed inset-0 bg-neutral-900/80 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleAddProductModal()" class="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 font-bold">✕</button>
+            <h2 id="modal-title" class="text-2xl font-bold text-neutral-900 mb-4">Add New Product</h2>
+            
+            <form id="add-product-form" onsubmit="handleAddProduct(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold mb-1">Product Name</label>
+                    <input type="text" id="prod-name" required class="w-full p-2 border rounded-lg focus:ring-emerald-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Category</label>
+                        <select id="prod-category" class="w-full p-2 border rounded-lg focus:ring-emerald-500 outline-none">
+                            <option>Food</option><option>Textiles</option><option>Handicrafts</option><option>Spices</option><option>Art</option><option>Jewelry</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1">Stock (Qty)</label>
+                        <input type="number" id="prod-stock" required class="w-full p-2 border rounded-lg focus:ring-emerald-500 outline-none">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-1">List Price (₹)</label>
+                        <input type="number" id="prod-price" required class="w-full p-2 border rounded-lg focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-1 text-emerald-700">AI Min Negotiable Price (₹)</label>
+                        <input type="number" id="prod-min-price" required class="w-full p-2 border border-emerald-300 bg-emerald-50 rounded-lg focus:ring-emerald-500 outline-none" placeholder="Lowest accepted">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold mb-1">Media (Photos/Videos)</label>
+                    <div class="border-2 border-dashed border-neutral-300 rounded-lg p-4 text-center cursor-pointer hover:bg-neutral-50 transition">
+                        <span class="text-2xl mb-2 block">📸</span>
+                        <span class="text-sm font-medium text-neutral-500">Tap to upload photos/videos</span>
+                        <input type="file" class="hidden" accept="image/*,video/*" multiple id="prod-media">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="prod-negotiable" class="h-4 w-4 text-emerald-600 rounded focus:ring-emerald-500 hover:cursor-pointer" checked>
+                    <label for="prod-negotiable" class="text-sm font-bold text-neutral-700 hover:cursor-pointer">Allow AI Negotiation</label>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 mt-4 rounded-xl transition">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+        <script>
+        let editingRow = null;
+        let editingProductId = null;
+        let sellerProducts = [];
+
+        function renderInventory() {
+            const tbody = document.querySelector('#inventory-table tbody');
+            tbody.innerHTML = '';
+            
+            const currentUser = getCurrentUser();
+            if (!currentUser) return;
+
+            sellerProducts = getProducts().filter(p => p.sellerId === currentUser.id);
+
+            sellerProducts.forEach(prod => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-neutral-100 hover:bg-neutral-50 text-sm";
+                tr.innerHTML = `
+                    <td class="p-4 flex items-center gap-3 font-bold">
+                        ${prod.name}
+                    </td>
+                    <td class="p-4">${prod.category}</td>
+                    <td class="p-4"><span class="px-2 py-1 bg-green-100 text-green-800 font-bold rounded-full text-xs">${prod.stock} left</span></td>
+                    <td class="p-4">₹${prod.price}</td>
+                    <td class="p-4 bg-emerald-50 text-emerald-800 font-bold">₹${Math.floor(prod.price * 0.9)}</td>
+                    <td class="p-4 text-right"><button onclick="editProduct('${prod.id}')" class="text-blue-600 hover:underline font-bold">Edit</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.onload = function() {
+            const currentUser = getCurrentUser();
+            if(!currentUser) {
+                window.location.href = 'index.html';
+            }
+            if(document.querySelector('.text-sm.font-medium.mt-1')) {
+                 document.querySelector('.text-sm.font-medium.mt-1').innerText = currentUser.name || 'Seller';
+            }
+            renderInventory();
+            renderOrders();
+        }
+
+        function renderOrders() {
+            const tbody = document.querySelector('#orders-table tbody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            
+            const currentUser = getCurrentUser();
+            let allOrders = getOrders();
+            // Filter orders containing items from this seller
+            // Note: Since our mock stores full item strings, we do a simplistic match.
+            // Ideally orders should track sellerIds per item.
+            
+            allOrders.forEach(o => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b hover:bg-neutral-50 text-sm";
+                tr.innerHTML = `
+                    <td class="p-4 font-bold max-w-xs truncate">${o.id}</td>
+                    <td class="p-4 max-w-xs truncate">${o.items.join(', ')}</td>
+                    <td class="p-4 font-bold text-emerald-700">${o.total}</td>
+                    <td class="p-4">
+                        <select onchange="updateOrderStatus('${o.id}', this.value)" class="p-1 border rounded text-xs font-bold ${getStatusColor(o.status)}">
+                            <option value="Paid" ${o.status === 'Paid' ? 'selected' : ''}>Paid / Pending</option>
+                            <option value="Processing" ${o.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                            <option value="Shipped" ${o.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
+                            <option value="Out for Delivery" ${o.status === 'Out for Delivery' ? 'selected' : ''}>Out for Delivery</option>
+                            <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                        </select>
+                    </td>
+                    <td class="p-4 text-emerald-600 font-bold cursor-pointer hover:underline">Manage</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'Paid': return 'bg-orange-100 text-orange-800';
+                case 'Processing': return 'bg-yellow-100 text-yellow-800';
+                case 'Shipped': return 'bg-blue-100 text-blue-800';
+                case 'Out for Delivery': return 'bg-purple-100 text-purple-800';
+                case 'Delivered': return 'bg-green-100 text-green-800';
+                default: return 'bg-neutral-100 text-neutral-800';
+            }
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            let allOrders = getOrders();
+            const idx = allOrders.findIndex(o => o.id === orderId);
+            if(idx !== -1) {
+                allOrders[idx].status = newStatus;
+                localStorage.setItem('lt_orders', JSON.stringify(allOrders));
+                renderOrders(); // Re-render to update colors
+            }
+        }
+
+        function toggleAddProductModal() {
+            const modal = document.getElementById('add-product-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.replace('hidden', 'flex');
+            } else {
+                modal.classList.replace('flex', 'hidden');
+            }
+        }
+
+        function openAddProductModal() {
+            editingProductId = null;
+            document.getElementById('modal-title').innerText = "Add New Product";
+            document.getElementById('add-product-form').reset();
+            toggleAddProductModal();
+        }
+
+        function editProduct(productId) {
+            editingProductId = productId;
+            const prod = sellerProducts.find(p => p.id === productId);
+            if(!prod) return;
+
+            document.getElementById('modal-title').innerText = "Edit Product";
+            document.getElementById('prod-name').value = prod.name;
+            document.getElementById('prod-category').value = prod.category;
+            document.getElementById('prod-stock').value = prod.stock;
+            document.getElementById('prod-price').value = prod.price;
+            document.getElementById('prod-min-price').value = Math.floor(prod.price * 0.9);
+
+            toggleAddProductModal();
+        }
+
+        function handleAddProduct(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('prod-name').value;
+            const category = document.getElementById('prod-category').value;
+            const stock = parseInt(document.getElementById('prod-stock').value) || 0;
+            const price = parseFloat(document.getElementById('prod-price').value) || 0;
+            const currentUser = getCurrentUser();
+
+            let allProducts = getProducts();
+
+            if (editingProductId) {
+                // Update
+                const idx = allProducts.findIndex(p => p.id === editingProductId);
+                if(idx !== -1) {
+                    allProducts[idx].name = name;
+                    allProducts[idx].category = category;
+                    allProducts[idx].stock = stock;
+                    allProducts[idx].price = price;
+                }
+            } else {
+                // Add
+                
+                // Fallback images based on category
+                let fallbackImg = 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop&q=60';
+                if(category === 'Textiles') fallbackImg = 'https://images.unsplash.com/photo-1610030469983-98e550d61dc0?w=500&auto=format&fit=crop&q=60';
+                if(category === 'Handicrafts') fallbackImg = 'https://images.unsplash.com/photo-1544485558-cc30ebad3234?w=500&auto=format&fit=crop&q=60';
+                if(category === 'Spices') fallbackImg = 'https://images.unsplash.com/photo-1596662951482-0c4ba74a6df6?w=500&auto=format&fit=crop&q=60';
+                if(category === 'Art') fallbackImg = 'https://images.unsplash.com/photo-1610419266155-fc42c1ab2090?w=500&auto=format&fit=crop&q=60';
+                if(category === 'Jewelry') fallbackImg = 'https://images.unsplash.com/photo-1583391733958-65e27a69b76c?w=500&auto=format&fit=crop&q=60';
+
+                allProducts.push({
+                    id: 'prod_' + Date.now(),
+                    name: name,
+                    category: category,
+                    price: price,
+                    stock: stock,
+                    sellerId: currentUser ? currentUser.id : 'seller1',
+                    sellerName: currentUser ? currentUser.name : 'Guru Sweets',
+                    lat: 12.2958 + (Math.random() - 0.5) * 0.1,
+                    lng: 76.6394 + (Math.random() - 0.5) * 0.1,
+                    rating: 5.0,
+                    img: fallbackImg
+                });
+            }
+
+            saveProducts(allProducts);
+            renderInventory();
+
+            e.target.reset();
+            toggleAddProductModal();
+            editingProductId = null;
+        }
+
+        function switchTab(tabId) {
+            // Hide all
+            ['inventory', 'orders', 'finance'].forEach(id => {
+                document.getElementById('view-' + id).classList.add('hidden');
+                document.getElementById('view-' + id).classList.remove('block');
+
+                const btn = document.getElementById('tab-' + id);
+                btn.classList.remove('bg-emerald-600', 'text-white', 'font-bold');
+                btn.classList.add('text-neutral-300', 'hover:bg-neutral-800', 'font-medium');
+            });
+
+            // Show active
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            document.getElementById('view-' + tabId).classList.add('block');
+
+            const activeBtn = document.getElementById('tab-' + tabId);
+            activeBtn.classList.add('bg-emerald-600', 'text-white', 'font-bold');
+            activeBtn.classList.remove('text-neutral-300', 'hover:bg-neutral-800', 'font-medium');
+        }
+    </script>
+    <!-- Perlin Noise Waves Library (Modified for HTML) -->
+    <script>
+        (function(global){var module=global.noise={};function Grad(x,y,z){this.x=x;this.y=y;this.z=z;}
+        Grad.prototype.dot2=function(x,y){return this.x*x+this.y*y;};
+        Grad.prototype.dot3=function(x,y,z){return this.x*x+this.y*y+this.z*z;};
+        var grad3=[new Grad(1,1,0),new Grad(-1,1,0),new Grad(1,-1,0),new Grad(-1,-1,0),
+        new Grad(1,0,1),new Grad(-1,0,1),new Grad(1,0,-1),new Grad(-1,0,-1),
+        new Grad(0,1,1),new Grad(0,-1,1),new Grad(0,1,-1),new Grad(0,-1,-1)];
+        var p=[151,160,137,91,90,15,131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,190,6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,88,237,149,56,87,174,20,125,136,171,168,68,175,74,165,71,134,139,48,27,166,77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,102,143,54,65,25,63,161,1,216,80,73,209,76,132,187,208,89,18,169,200,196,135,130,116,188,159,86,164,100,109,198,173,186,3,64,52,217,226,250,124,123,5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,223,183,170,213,119,248,152,2,44,154,163,70,221,153,101,155,167,43,172,9,129,22,39,253,19,98,108,110,79,113,224,232,178,185,112,104,218,246,97,228,251,34,242,193,238,210,144,12,191,179,162,241,81,51,145,235,249,14,239,107,49,192,214,31,181,199,106,157,184,84,204,176,115,121,50,45,127,4,150,254,138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
+        var perm=new Array(512);var gradP=new Array(512);
+        module.seed=function(seed){if(seed>0&&seed<1){seed*=65536;}seed=Math.floor(seed);if(seed<256){seed|=seed<<8;}for(var i=0;i<256;i++){var v;if(i&1){v=p[i]^(seed&255);}else{v=p[i]^((seed>>8)&255);}perm[i]=perm[i+256]=v;gradP[i]=gradP[i+256]=grad3[v%12];}};module.seed(0);
+        function fade(t){return t*t*t*(t*(t*6-15)+10);}function lerp(a,b,t){return(1-t)*a+t*b;}
+        module.perlin2=function(x,y){var X=Math.floor(x),Y=Math.floor(y);x=x-X;y=y-Y;X=X&255;Y=Y&255;var n00=gradP[X+perm[Y]].dot2(x,y);var n01=gradP[X+perm[Y+1]].dot2(x,y-1);var n10=gradP[X+1+perm[Y]].dot2(x-1,y);var n11=gradP[X+1+perm[Y+1]].dot2(x-1,y-1);var u=fade(x);return lerp(lerp(n00,n10,u),lerp(n01,n11,u),fade(y));};
+        })(this);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const container = document.querySelector('.bg-waves');
+            const canvas = document.getElementById('waves-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const config = {
+                lineColor: "rgba(16, 185, 129, 0.15)",
+                waveSpeedX: 0.0125,
+                waveSpeedY: 0.005,
+                waveAmpX: 32,
+                waveAmpY: 16,
+                xGap: 18,
+                yGap: 36,
+                friction: 0.925,
+                tension: 0.005,
+                maxCursorMove: 100,
+            };
+
+            const mouse = { x: -10, y: 0, lx: 0, ly: 0, sx: 0, sy: 0, v: 0, vs: 0, a: 0, set: false };
+            let bounding = { width: 0, height: 0, left: 0, top: 0 };
+            let linesInfo = [];
+            let frameId = null;
+
+            function setSize() {
+                bounding = container.getBoundingClientRect();
+                canvas.width = bounding.width;
+                canvas.height = bounding.height;
+            }
+
+            function setLines() {
+                if (frameId) cancelAnimationFrame(frameId);
+                linesInfo = [];
+                const padding = Math.max(config.waveAmpX, config.waveAmpY, config.maxCursorMove) * 2;   
+                
+                // Add vertical lines
+                for (let x = -padding; x < bounding.width + padding; x += config.xGap) {
+                    const pts = [];
+                    for (let y = -padding; y < bounding.height + padding; y += config.yGap) {
+                        pts.push({ x, y, wave: { x: 0, y: 0 }, cursor: { x: 0, y: 0, vx: 0, vy: 0 } }); 
+                    }
+                    linesInfo.push(pts);
+                }
+
+                // Add horizontal lines
+                for (let y = -padding; y < bounding.height + padding; y += config.yGap) {
+                    const pts = [];
+                    for (let x = -padding; x < bounding.width + padding; x += config.xGap) {
+                        pts.push({ x, y, wave: { x: 0, y: 0 }, cursor: { x: 0, y: 0, vx: 0, vy: 0 } }); 
+                    }
+                    linesInfo.push(pts);
+                }
+            }
+
+            function movePoints(time) {
+                linesInfo.forEach(pts => {
+                    pts.forEach(p => {
+                        const move = noise.perlin2((p.x + time * config.waveSpeedX) * 0.002, (p.y + time * config.waveSpeedY) * 0.0015) * 12;
+                        p.wave.x = Math.cos(move) * config.waveAmpX;
+                        p.wave.y = Math.sin(move) * config.waveAmpY;
+
+                        const dx = p.x - mouse.sx, dy = p.y - mouse.sy;
+                        const dist = Math.hypot(dx, dy), l = Math.max(175, mouse.vs);
+                        if (dist < l) {
+                            const s = 1 - dist / l;
+                            const f = Math.cos(dist * 0.001) * s;
+                            p.cursor.vx += Math.cos(mouse.a) * f * l * mouse.vs * 0.00065;
+                            p.cursor.vy += Math.sin(mouse.a) * f * l * mouse.vs * 0.00065;
+                        }
+
+                        p.cursor.vx += (0 - p.cursor.x) * config.tension;
+                        p.cursor.vy += (0 - p.cursor.y) * config.tension;
+                        p.cursor.vx *= config.friction;
+                        p.cursor.vy *= config.friction;
+                        p.cursor.x += p.cursor.vx * 2;
+                        p.cursor.y += p.cursor.vy * 2;
+                        p.cursor.x = Math.min(config.maxCursorMove, Math.max(-config.maxCursorMove, p.cursor.x));
+                        p.cursor.y = Math.min(config.maxCursorMove, Math.max(-config.maxCursorMove, p.cursor.y));
+                    });
+                });
+            }
+
+            function moved(point, withCursor = true) {
+                const x = point.x + point.wave.x + (withCursor ? point.cursor.x : 0);
+                const y = point.y + point.wave.y + (withCursor ? point.cursor.y : 0);
+                return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+            }
+
+            function drawLines() {
+                ctx.clearRect(0, 0, bounding.width, bounding.height);
+                ctx.beginPath();
+                ctx.strokeStyle = config.lineColor;
+                linesInfo.forEach(points => {
+                    let p1 = moved(points[0], false);
+                    ctx.moveTo(p1.x, p1.y);
+                    points.forEach((p, idx) => {
+                        const isLast = idx === points.length - 1;
+                        p1 = moved(p, !isLast);
+                        const p2 = moved(points[idx + 1] || points[points.length - 1], !isLast);
+                        ctx.lineTo(p1.x, p1.y);
+                        if (isLast) ctx.moveTo(p2.x, p2.y);
+                    });
+                });
+                ctx.stroke();
+            }
+
+            function tick(t) {
+                mouse.sx += (mouse.x - mouse.sx) * 0.1;
+                mouse.sy += (mouse.y - mouse.sy) * 0.1;
+                const dx = mouse.x - mouse.lx, dy = mouse.y - mouse.ly;
+                const d = Math.hypot(dx, dy);
+                mouse.v = d;
+                mouse.vs += (d - mouse.vs) * 0.1;
+                mouse.vs = Math.min(100, mouse.vs);
+                mouse.lx = mouse.x;
+                mouse.ly = mouse.y;
+                mouse.a = Math.atan2(dy, dx);
+                container.style.setProperty('--x', `${mouse.sx}px`);
+                container.style.setProperty('--y', `${mouse.sy}px`);
+
+                movePoints(t);
+                drawLines();
+                frameId = requestAnimationFrame(tick);
+            }
+
+            function onResize() { setSize(); setLines(); }
+            function updateMouse(x, y) {
+                mouse.x = x - bounding.left;
+                mouse.y = y - bounding.top;
+                if (!mouse.set) {
+                    mouse.sx = mouse.x; mouse.sy = mouse.y;
+                    mouse.lx = mouse.x; mouse.ly = mouse.y;
+                    mouse.set = true;
+                }
+            }
+
+            setSize();
+            setLines();
+            window.addEventListener('resize', onResize);
+            window.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => updateMouse(e.touches[0].clientX, e.touches[0].clientY), { passive: false });
+
+            frameId = requestAnimationFrame(tick);
+        });
+    </script>
+</body>
+</html>
+
